@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CELSA - Registro de Scrap</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --celsa-red: #E30613;
+      --celsa-dark: #1A1A1A;
+      --celsa-light-gray: #F5F5F7;
+      --celsa-border: #D1D1D6;
+      --celsa-blue: #0066B3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    body { background: var(--celsa-light-gray); color: var(--celsa-dark);
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 20px 0; }
+    .mobile-container { width: 100%; max-width: 720px; background: #FFF;
+      display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      border-radius: 12px; overflow: visible; }
+    header { border-top: 4px solid var(--celsa-red); padding: 15px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #FFF; border-bottom: 1px solid var(--celsa-border);
+      border-top-left-radius: 8px; border-top-right-radius: 8px;
+      position: sticky; top: 0; z-index: 100; }
+    .logo-box { background: var(--celsa-red); color: #FFF; font-weight: 900;
+      font-size: 20px; letter-spacing: 1px; padding: 4px 12px;
+      border-radius: 3px; display: inline-block; }
+    .logo-sub { font-size: 8px; font-weight: bold; color: #000;
+      text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+    .app-title { font-size: 13px; color: #666; font-weight: 600;
+      max-width: 200px; text-align: right; }
+    main { padding: 20px; flex: 1 0 auto; }
+    h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px;
+      border-left: 4px solid var(--celsa-red); padding-left: 10px; }
+    .corr-pill { display: inline-flex; align-items: center; gap: 6px;
+      background: #E8F4FD; border: 1px solid #90caf9;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 11px; font-weight: 700; color: var(--celsa-blue);
+      margin-bottom: 20px; }
+    .corr-dot { width: 7px; height: 7px; border-radius: 50%;
+      background: var(--celsa-blue); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%     { opacity: 0.35; transform: scale(0.65); } }
+    .frame-container { margin-bottom: 18px;
+      border: 2px solid var(--celsa-border); border-radius: 12px;
+      overflow: hidden; background: #FFF; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); } }
+    .frame-header { color: #FFF; padding: 12px 18px;
+      font-weight: 700; font-size: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, #E30613 0%, #8B0000 100%); }
+    .frame-header .left { display: flex; align-items: center; gap: 10px; }
+    .btn-remove { background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.4); color: #FFF;
+      border-radius: 6px; padding: 4px 10px; font-size: 12px;
+      font-weight: 700; cursor: pointer; display: flex;
+      align-items: center; gap: 5px; transition: background 0.2s; }
+    .btn-remove:hover { background: rgba(255,255,255,0.35); }
+    .frame-content { padding: 18px; background: #FAFAFA; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: span 2; }
+    .form-group label { font-size: 11px; font-weight: 700; color: #666;
+      text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group input { padding: 10px 12px;
+      border: 2px solid var(--celsa-border); border-radius: 8px;
+      font-size: 14px; font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: #FFF; color: var(--celsa-dark); }
+    .form-group input:focus { outline: none; border-color: var(--celsa-red);
+      box-shadow: 0 0 0 3px rgba(227,6,19,0.12); }
+    .form-group input[readonly] { background: #F0F0F2; color: #555; cursor: not-allowed; }
+    .form-group input.ok    { border-color: #00B894; background: #F1FBF7; }
+    .form-group input.error { border-color: var(--celsa-red); background: #FFF5F5; }
+    .status-msg { font-size: 11px; font-weight: 600; margin-top: 3px; display: none; }
+    .status-msg.ok    { color: #00B894; display: block; }
+    .status-msg.error { color: var(--celsa-red); display: block; }
+    .btn-add { width: 100%; padding: 14px;
+      background: #FFF; color: var(--celsa-red);
+      border: 2px dashed var(--celsa-red); border-radius: 10px;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 8px; transition: all 0.2s; margin-top: 8px; }
+    .btn-add:hover { background: #FFF0F0; border-style: solid; }
+    .actions-bar { display: flex; gap: 12px; margin-top: 20px;
+      padding-top: 20px; border-top: 2px dashed var(--celsa-border); }
+    .btn { flex: 1; padding: 14px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 8px; transition: all 0.2s; }
+    .btn-primary { background: var(--celsa-red); color: #FFF;
+      box-shadow: 0 4px 10px rgba(227,6,19,0.25); }
+    .btn-primary:hover { background: #b8000f; }
+    .btn-primary:disabled { background: #999; box-shadow: none; cursor: not-allowed; }
+    .btn-secondary { background: #FFF; color: var(--celsa-dark);
+      border: 2px solid var(--celsa-border); }
+    .btn-secondary:hover { border-color: var(--celsa-dark); }
+    .summary-card { background: #FFF; border: 2px solid var(--celsa-border);
+      border-radius: 12px; padding: 16px; margin-top: 20px; }
+    .summary-card h3 { font-size: 13px; color: #666;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .summary-stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+    .stat-box { background: #F5F5F7; border-radius: 8px;
+      padding: 10px; text-align: center; }
+    .stat-box .value { font-size: 20px; font-weight: 800;
+      color: var(--celsa-dark); line-height: 1; }
+    .stat-box .label { font-size: 10px; color: #888; font-weight: 700;
+      text-transform: uppercase; margin-top: 4px; }
+    .toast { position: fixed; top: 20px; left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: var(--celsa-dark); color: #FFF;
+      padding: 14px 22px; border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      z-index: 9999; opacity: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 90%; text-align: center; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { background: #00B894; }
+    .toast.error   { background: var(--celsa-red); }
+    .loading-overlay { position: fixed; inset: 0;
+      background: rgba(255,255,255,0.85);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 15px; z-index: 9998; }
+    .loading-overlay.show { display: flex; }
+    .spinner { width: 48px; height: 48px;
+      border: 4px solid var(--celsa-border);
+      border-top-color: var(--celsa-red); border-radius: 50%;
+      animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay p { font-weight: 700; color: #555; font-size: 14px; }
+    .modal-overlay { position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); display: none;
+      align-items: center; justify-content: center;
+      z-index: 9999; padding: 20px; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: #FFF; border-radius: 14px;
+      max-width: 420px; width: 100%;
+      padding: 26px 24px; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      animation: fadeIn 0.3s ease; }
+    .modal-box .icon-ok { width: 64px; height: 64px; border-radius: 50%;
+      background: #E8F8F2; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 14px; }
+    .modal-box .icon-ok i { font-size: 30px; color: #00B894; }
+    .modal-box h3 { font-size: 17px; margin-bottom: 8px; }
+    .modal-box p { font-size: 13px; color: #666; margin-bottom: 18px; }
+    .modal-box .btns { display: flex; gap: 10px; }
+    .modal-box .btns button { flex: 1; padding: 12px;
+      border-radius: 10px; font-size: 13px; font-weight: 700;
+      cursor: pointer; border: none; font-family: inherit; }
+    .modal-box .btn-dl { background: var(--celsa-red); color: #FFF; }
+    .modal-box .btn-dl:hover { background: #b8000f; }
+    .modal-box .btn-no { background: #F0F0F2; color: var(--celsa-dark); }
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: span 1; }
+      .summary-stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="mobile-container">
+  <header>
+    <div>
+      <div class="logo-box">CELSA</div>
+      <div class="logo-sub">Control de Scrap</div>
+    </div>
+    <div class="app-title">Registro Diario<br>Control de Calidad</div>
+  </header>
+
+  <main>
+    <h2>Registro de Recorrido Diario</h2>
+    <div class="corr-pill">
+      <span class="corr-dot"></span>
+      Próximo código: <span id="prox-cod">--</span>
+    </div>
+
+    <div id="frames-container"></div>
+
+    <button class="btn-add" onclick="agregarFrame()">
+      <i class="fas fa-plus-circle"></i> Añadir Producto
+    </button>
+
+    <div class="summary-card">
+      <h3><i class="fas fa-chart-simple"></i> Resumen</h3>
+      <div class="summary-stats">
+        <div class="stat-box">
+          <div class="value" id="stat-total">0</div>
+          <div class="label">Registros</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="stat-peso-cu">0</div>
+          <div class="label">Peso Cu</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="stat-peso-al">0</div>
+          <div class="label">Peso Al</div>
+        </div>
+        <div class="stat-box">
+          <div class="value" id="stat-hojas">0</div>
+          <div class="label">Recorridos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn btn-secondary" onclick="limpiarTodo()">
+        <i class="fas fa-eraser"></i> Limpiar
+      </button>
+      <button class="btn btn-primary" id="btn-guardar" onclick="guardarTodo()">
+        <i class="fas fa-file-excel"></i> Generar .XLSX
+      </button>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p id="loading-text">Procesando...</p>
+</div>
+
+<!-- Modal de confirmación de descarga -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="icon-ok"><i class="fas fa-check"></i></div>
+    <h3>¡Registro guardado!</h3>
+    <p id="modal-msg">Se guardó correctamente en la carpeta destino.</p>
+    <div class="btns">
+      <button class="btn-no" onclick="cerrarModal()">No, cerrar</button>
+      <button class="btn-dl" onclick="descargarArchivo()">
+        <i class="fas fa-download"></i> Sí, descargar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* =========================================================
+     ⚙️ CONFIGURACIÓN: URL del backend Apps Script (.exec)
+     Reemplaza esta URL por la tuya después de implementar
+     ========================================================= */
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxgmcZumNXvYUvA2502_UNH6dwL0hlcr5Ji8dAZ7slD5gfyglmiJK1L_cUnokD1ewtz/exec';
+
+  let contadorFrames = 0;
+  let correlativoBase = 1;
+  let urlDescarga = '';
+
+  /* ---------- Utilidades UI ---------- */
+  function showToast(msg, tipo = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + tipo;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = 'toast', 3500);
+  }
+  function showLoading(txt = 'Procesando...') {
+    document.getElementById('loading-text').textContent = txt;
+    document.getElementById('loading').classList.add('show');
+  }
+  function hideLoading() {
+    document.getElementById('loading').classList.remove('show');
+  }
+  function cerrarModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+  function descargarArchivo() {
+    if (urlDescarga) window.open(urlDescarga, '_blank');
+    cerrarModal();
+  }
+
+  /* ---------- Código automático día-MES-# ---------- */
+  function generarCodigo(numero) {
+    const hoy = new Date();
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    const mesesAbrev = ['ENE','FEB','MAR','ABR','MAY','JUN',
+                        'JUL','AGO','SET','OCT','NOV','DIC'];
+    const mes = mesesAbrev[hoy.getMonth()];
+    return `${dia}-${mes}-${numero}`;
+  }
+
+  /* =========================================================
+     LLAMADAS AL BACKEND
+     ========================================================= */
+  async function apiGet(params) {
+    const url = API_URL + '?' + new URLSearchParams(params).toString();
+    const resp = await fetch(url, { method: 'GET' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  }
+  async function apiPost(body) {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  }
+
+  /* ---------- Inicializa consultando correlativo ---------- */
+  async function inicializar() {
+    showLoading('Consultando correlativo...');
+    try {
+      const res = await apiGet({ action: 'proximoCorrelativo' });
+      correlativoBase = (res.data && res.data.proximo) || 1;
+    } catch (err) {
+      showToast('Error al consultar correlativo: ' + err.message, 'error');
+      correlativoBase = 1;
+    } finally {
+      hideLoading();
+      actualizarPill();
+      agregarFrame();
+    }
+  }
+
+  function actualizarPill() {
+    const el = document.getElementById('prox-cod');
+    if (el) el.textContent = generarCodigo(correlativoBase);
+  }
+
+  /* ---------- Crear frame ---------- */
+  function agregarFrame() {
+    contadorFrames++;
+    const id = 'frame-' + contadorFrames;
+    const codigo = generarCodigo(correlativoBase + contadorFrames - 1);
+    const anioActual = String(new Date().getFullYear()).slice(-2); // "26"
+
+    const html = `
+      <div class="frame-container" id="${id}" data-origen="" data-peso-base="">
+        <div class="frame-header">
+          <div class="left">
+            <i class="fas fa-box"></i>
+            <span>Producto #${contadorFrames} — <span class="cod">${codigo}</span></span>
+          </div>
+          <button class="btn-remove" onclick="eliminarFrame('${id}')" title="Eliminar">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+        <div class="frame-content">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Código</label>
+              <input type="text" class="inp-codigo" value="${codigo}" readonly>
+            </div>
+
+            <!-- OF con año pequeño al lado -->
+            <div class="form-group">
+              <label>OF</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-weight:700; font-size:13px;">OF</span>
+                <input type="text" class="inp-anio" maxlength="2"
+                       value="${anioActual}"
+                       style="width:60px; text-align:center;"
+                       placeholder="26"
+                       title="Año (2 dígitos)">
+                <span style="font-weight:700; font-size:13px;">/</span>
+                <input type="text" class="inp-of" maxlength="4"
+                       placeholder="2070"
+                       style="flex:1; min-width:80px;">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Código Artículo (4 dígitos)</label>
+              <input type="text" class="inp-articulo" maxlength="4"
+                     placeholder="Ej: 4410" oninput="onArticulo(this)">
+              <div class="status-msg"></div>
+            </div>
+            <div class="form-group">
+              <label>Producto</label>
+              <input type="text" class="inp-producto" readonly>
+            </div>
+            <div class="form-group">
+              <label>Color</label>
+              <input type="text" class="inp-color" readonly>
+            </div>
+            <div class="form-group">
+              <label>Longitud (m)</label>
+              <input type="number" class="inp-longitud" min="0" step="0.01"
+                     placeholder="Ej: 3.5" oninput="onLongitud(this)">
+            </div>
+            <div class="form-group">
+              <label>Peso Cu (kg)</label>
+              <input type="text" class="inp-pesocu" readonly>
+            </div>
+            <div class="form-group">
+              <label>Peso Al (kg)</label>
+              <input type="text" class="inp-pesoal" readonly>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('frames-container').insertAdjacentHTML('beforeend', html);
+    actualizarResumen();
+    actualizarPill();
+  }
+
+  function eliminarFrame(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    reindexar();
+    actualizarResumen();
+    actualizarPill();
+  }
+
+  function reindexar() {
+    const frames = document.querySelectorAll('.frame-container');
+    contadorFrames = 0;
+    frames.forEach(f => {
+      contadorFrames++;
+      const nuevoCodigo = generarCodigo(correlativoBase + contadorFrames - 1);
+      f.querySelector('.frame-header .left span').innerHTML =
+        `Producto #${contadorFrames} — <span class="cod">${nuevoCodigo}</span>`;
+      f.querySelector('.inp-codigo').value = nuevoCodigo;
+    });
+  }
+
+  /* ---------- Buscar artículo ---------- */
+  async function onArticulo(input) {
+    const frame = input.closest('.frame-container');
+    const status = frame.querySelector('.status-msg');
+    const inpProd = frame.querySelector('.inp-producto');
+    const inpColor = frame.querySelector('.inp-color');
+    const inpCu = frame.querySelector('.inp-pesocu');
+    const inpAl = frame.querySelector('.inp-pesoal');
+
+    const codigo = input.value.trim();
+    input.classList.remove('ok','error');
+    inpProd.value = ''; inpColor.value = '';
+    inpCu.value = '';   inpAl.value = '';
+    status.className = 'status-msg'; status.textContent = '';
+
+    // Reinicia los datos del frame
+    frame.dataset.origen = '';
+    frame.dataset.pesoBase = '';
+
+    if (!/^\d{4}$/.test(codigo)) return;
+
+    showLoading('Buscando en lista de materiales...');
+    try {
+      const res = await apiGet({ action: 'buscarArticulo', codigo: codigo });
+      const data = res.data || {};
+      if (data.ok) {
+        input.classList.add('ok');
+        status.className = 'status-msg ok';
+        status.textContent = '✓ Artículo ' + (data.codigoReal || ('104000' + codigo)) +
+                             ' encontrado en hoja "' + data.origen + '"';
+
+        inpProd.value  = data.producto || '';
+        inpColor.value = data.color || '';
+
+        // Guardamos el origen y el peso base para recalcular con la longitud
+        frame.dataset.origen   = data.origen || '';
+        frame.dataset.pesoBase = (data.peso === '' || data.peso === null) ? '' : String(data.peso);
+
+        // Si ya había longitud escrita, recalcular
+        recalcularPesos(frame);
+      } else {
+        input.classList.add('error');
+        status.className = 'status-msg error';
+        status.textContent = data.msg || 'No encontrado';
+      }
+    } catch (err) {
+      input.classList.add('error');
+      status.className = 'status-msg error';
+      status.textContent = 'Error: ' + err.message;
+    } finally {
+      hideLoading();
+      actualizarResumen();
+    }
+  }
+
+  /* ---------- Recalcular pesos según origen y longitud ---------- */
+  function recalcularPesos(frame) {
+    const inpCu = frame.querySelector('.inp-pesocu');
+    const inpAl = frame.querySelector('.inp-pesoal');
+    const inpLong = frame.querySelector('.inp-longitud');
+
+    const origen = frame.dataset.origen;
+    const pesoBaseStr = frame.dataset.pesoBase;
+
+    // Limpiar ambos
+    inpCu.value = '';
+    inpAl.value = '';
+
+    if (!origen || pesoBaseStr === '') return;
+
+    const pesoBase = parseFloat(pesoBaseStr) || 0;
+    const longitud = parseFloat(inpLong.value) || 0;
+
+    if (longitud <= 0) return;
+
+    const pesoFinal = +(pesoBase * longitud).toFixed(2);
+
+    if (origen === 'Cu') {
+      inpCu.value = pesoFinal;
+    } else if (origen === 'Al') {
+      inpAl.value = pesoFinal;
+    }
+  }
+
+  /* ---------- Al escribir longitud ---------- */
+  function onLongitud(input) {
+    const frame = input.closest('.frame-container');
+    recalcularPesos(frame);
+    actualizarResumen();
+  }
+
+  /* ---------- Resumen ---------- */
+  function actualizarResumen() {
+    const frames = document.querySelectorAll('.frame-container');
+    let pesoCuTotal = 0;
+    let pesoAlTotal = 0;
+
+    frames.forEach(f => {
+      const cu = parseFloat(f.querySelector('.inp-pesocu').value) || 0;
+      const al = parseFloat(f.querySelector('.inp-pesoal').value) || 0;
+      pesoCuTotal += cu;
+      pesoAlTotal += al;
+    });
+
+    const recorridos = Math.ceil(frames.length / 12) || 0;
+    document.getElementById('stat-total').textContent    = frames.length;
+    document.getElementById('stat-peso-cu').textContent  = pesoCuTotal.toFixed(2);
+    document.getElementById('stat-peso-al').textContent  = pesoAlTotal.toFixed(2);
+    document.getElementById('stat-hojas').textContent    = recorridos;
+  }
+
+  /* ---------- Recolectar / validar ---------- */
+  function recolectarDatos() {
+    const frames = document.querySelectorAll('.frame-container');
+    const registros = [];
+    let error = null;
+
+    frames.forEach((f, i) => {
+      const codigo   = f.querySelector('.inp-codigo').value;
+      const of_      = f.querySelector('.inp-of').value.trim();
+      const anio     = f.querySelector('.inp-anio').value.trim();
+      const articulo = f.querySelector('.inp-articulo').value.trim();
+      const producto = f.querySelector('.inp-producto').value.trim();
+      const color    = f.querySelector('.inp-color').value.trim();
+      const longitud = f.querySelector('.inp-longitud').value.trim();
+      const pesoCu   = f.querySelector('.inp-pesocu').value;
+      const pesoAl   = f.querySelector('.inp-pesoal').value;
+
+      if (!of_)                       error = `Producto #${i+1}: falta OF.`;
+      if (!anio || !/^\d{2}$/.test(anio))
+                                      error = `Producto #${i+1}: año de OF inválido (2 dígitos).`;
+      if (!articulo)                  error = `Producto #${i+1}: falta código de artículo.`;
+      if (!/^\d{4}$/.test(articulo))  error = `Producto #${i+1}: artículo debe ser 4 dígitos.`;
+      if (!producto)                  error = `Producto #${i+1}: artículo no encontrado en lista.`;
+      if (!longitud || parseFloat(longitud) <= 0)
+                                      error = `Producto #${i+1}: falta longitud válida (> 0).`;
+
+      registros.push({
+        codigo,
+        of: of_,
+        anio: anio,
+        articulo,
+        producto,
+        color,
+        pesoCu: parseFloat(pesoCu) || '',
+        pesoAl: parseFloat(pesoAl) || ''
+      });
+    });
+
+    return { registros, error };
+  }
+
+  /* ---------- Guardar ---------- */
+  async function guardarTodo() {
+    const frames = document.querySelectorAll('.frame-container');
+    if (frames.length === 0) { showToast('Agrega al menos un producto.', 'error'); return; }
+
+    const { registros, error } = recolectarDatos();
+    if (error) { showToast(error, 'error'); return; }
+
+    showLoading('Guardando y generando .xlsx...');
+    document.getElementById('btn-guardar').disabled = true;
+
+    try {
+      const res = await apiPost({ action: 'guardarRegistros', registros: registros });
+      if (res.ok) {
+        urlDescarga = res.url;
+        document.getElementById('modal-msg').textContent =
+          `${res.total} registro(s) guardados en "${res.nombreArchivo}". ` +
+          `¿Deseas descargar el archivo .xlsx?`;
+        document.getElementById('modal').classList.add('show');
+
+        const r = await apiGet({ action: 'proximoCorrelativo' });
+        correlativoBase = (r.data && r.data.proximo) || correlativoBase;
+        actualizarPill();
+      } else {
+        showToast(res.msg || 'Error al guardar', 'error');
+      }
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      hideLoading();
+      document.getElementById('btn-guardar').disabled = false;
+    }
+  }
+
+  /* ---------- Limpiar ---------- */
+  async function limpiarTodo() {
+    if (!confirm('¿Eliminar todos los registros?')) return;
+    document.getElementById('frames-container').innerHTML = '';
+    contadorFrames = 0;
+    actualizarResumen();
+    try {
+      const res = await apiGet({ action: 'proximoCorrelativo' });
+      correlativoBase = (res.data && res.data.proximo) || 1;
+    } catch (e) {
+      correlativoBase = 1;
+    }
+    actualizarPill();
+    agregarFrame();
+  }
+
+  window.addEventListener('DOMContentLoaded', inicializar);
+</script>
+</body>
+</html>
