@@ -248,7 +248,7 @@
   /* =========================================================
      ⚙️ CONFIGURACIÓN: URL del backend Apps Script (.exec)
      ========================================================= */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwrMZE0taSJyKhalWhkptAYWovOriyMBhbhqS-Q8RUT36xErcKd_RqoKUuJtbA6wrOg/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzjJrusDQO_9bOqFlJyV_joeJfXLQc5Ufgx_JUHKOjI3L_Z2qjyriQ8iiqA15jLVQ0z/exec';
 
   let contadorFrames = 0;
   let correlativoBase = 1;
@@ -276,8 +276,6 @@
     if (urlDescarga) window.open(urlDescarga, '_blank');
     cerrarModal();
   }
-
-  /* ---------- Código automático día-MES-# ---------- */
   function generarCodigo(numero) {
     const hoy = new Date();
     const dia = String(hoy.getDate()).padStart(2, '0');
@@ -288,25 +286,52 @@
   }
 
   /* =========================================================
-     LLAMADAS AL BACKEND
+     LLAMADAS AL BACKEND — fetch con text/plain
      ========================================================= */
+
   async function apiGet(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
-    const resp = await fetch(url, { method: 'GET' });
+    const resp = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      cache: 'no-store'
+    });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.json();
+    const text = await resp.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('Respuesta no JSON: ' + text.substring(0, 200));
+    }
   }
+
   async function apiPost(body) {
-    const resp = await fetch(API_URL, {
+    const token = body.token;
+
+    // POST con text/plain → simple request, sin preflight
+    await fetch(API_URL, {
       method: 'POST',
+      redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body)
     });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.json();
+
+    // Esperar a que el backend procese
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Consultar el resultado vía GET (que sí podemos leer)
+    for (let i = 0; i < 20; i++) {
+      try {
+        const r = await apiGet({ action: 'ultimoGuardado', token: token });
+        if (r && r.ok) return r;
+        if (r && r.ok === false && r.msg && r.msg !== 'Sin resultado aún.') return r;
+      } catch (e) { /* reintentar */ }
+      await new Promise(r2 => setTimeout(r2, 2000));
+    }
+    throw new Error('Sin respuesta del backend.');
   }
 
-  /* ---------- Inicializa consultando correlativo ---------- */
+  /* ---------- Inicializa ---------- */
   async function inicializar() {
     showLoading('Consultando correlativo...');
     try {
@@ -332,7 +357,7 @@
     contadorFrames++;
     const id = 'frame-' + contadorFrames;
     const codigo = generarCodigo(correlativoBase + contadorFrames - 1);
-    const anioActual = String(new Date().getFullYear()).slice(-2); // "26"
+    const anioActual = String(new Date().getFullYear()).slice(-2);
 
     const html = `
       <div class="frame-container" id="${id}" data-origen="" data-peso-base="">
@@ -352,7 +377,6 @@
               <input type="text" class="inp-codigo" value="${codigo}" readonly>
             </div>
 
-            <!-- OF con año pequeño al lado -->
             <div class="form-group">
               <label>OF</label>
               <div style="display:flex; gap:8px; align-items:center;">
@@ -384,9 +408,9 @@
               <input type="text" class="inp-color" readonly>
             </div>
             <div class="form-group">
-              <label>Longitud (entero)</label>
-              <input type="text" class="inp-longitud" inputmode="numeric"
-                     placeholder="Ej: 3" oninput="onLongitud(this)">
+              <label>Longitud (m)</label>
+              <input type="number" class="inp-longitud" min="0" step="0.01"
+                     placeholder="Ej: 3.5" oninput="onLongitud(this)">
             </div>
             <div class="form-group">
               <label>Peso Cu (kg)</label>
@@ -453,13 +477,10 @@
         status.className = 'status-msg ok';
         status.textContent = '✓ Artículo ' + (data.codigoReal || ('104000' + codigo)) +
                              ' encontrado en hoja "' + data.origen + '"';
-
         inpProd.value  = data.producto || '';
         inpColor.value = data.color || '';
-
         frame.dataset.origen   = data.origen || '';
         frame.dataset.pesoBase = (data.peso === '' || data.peso === null) ? '' : String(data.peso);
-
         recalcularPesos(frame);
       } else {
         input.classList.add('error');
@@ -476,7 +497,6 @@
     }
   }
 
-  /* ---------- Recalcular pesos según origen y longitud ---------- */
   function recalcularPesos(frame) {
     const inpCu = frame.querySelector('.inp-pesocu');
     const inpAl = frame.querySelector('.inp-pesoal');
@@ -491,7 +511,7 @@
     if (!origen || pesoBaseStr === '') return;
 
     const pesoBase = parseFloat(pesoBaseStr) || 0;
-    const longitud = parseInt(inpLong.value, 10) || 0;
+    const longitud = parseFloat(inpLong.value) || 0;
 
     if (longitud <= 0) return;
 
@@ -504,16 +524,12 @@
     }
   }
 
-  /* ---------- Al escribir longitud (solo enteros) ---------- */
   function onLongitud(input) {
-    // Forzar solo dígitos
-    input.value = input.value.replace(/[^\d]/g, '');
     const frame = input.closest('.frame-container');
     recalcularPesos(frame);
     actualizarResumen();
   }
 
-  /* ---------- Resumen ---------- */
   function actualizarResumen() {
     const frames = document.querySelectorAll('.frame-container');
     let pesoCuTotal = 0;
@@ -533,7 +549,6 @@
     document.getElementById('stat-hojas').textContent    = recorridos;
   }
 
-  /* ---------- Recolectar / validar ---------- */
   function recolectarDatos() {
     const frames = document.querySelectorAll('.frame-container');
     const registros = [];
@@ -556,8 +571,8 @@
       if (!articulo)                  error = `Producto #${i+1}: falta código de artículo.`;
       if (!/^\d{4}$/.test(articulo))  error = `Producto #${i+1}: artículo debe ser 4 dígitos.`;
       if (!producto)                  error = `Producto #${i+1}: artículo no encontrado en lista.`;
-      if (!longitud || !/^\d+$/.test(longitud) || parseInt(longitud, 10) <= 0)
-                                      error = `Producto #${i+1}: longitud inválida (entero > 0).`;
+      if (!longitud || parseFloat(longitud) <= 0)
+                                      error = `Producto #${i+1}: falta longitud válida (> 0).`;
 
       registros.push({
         codigo,
@@ -566,7 +581,6 @@
         articulo,
         producto,
         color,
-        longitud: parseInt(longitud, 10) || '',
         pesoCu: parseFloat(pesoCu) || '',
         pesoAl: parseFloat(pesoAl) || ''
       });
@@ -586,21 +600,30 @@
     showLoading('Guardando y generando .xlsx...');
     document.getElementById('btn-guardar').disabled = true;
 
-    try {
-      const res = await apiPost({ action: 'guardarRegistros', registros: registros });
-      if (res.ok) {
-        urlDescarga = res.url;
-        document.getElementById('modal-msg').textContent =
-          `${res.total} registro(s) guardados en "${res.nombreArchivo}". ` +
-          `¿Deseas descargar el archivo .xlsx?`;
-        document.getElementById('modal').classList.add('show');
+    const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 
+    try {
+      const res = await apiPost({
+        action: 'guardarRegistros',
+        token: token,
+        registros: registros
+      });
+
+      if (!res) throw new Error('Sin respuesta del backend.');
+      if (!res.ok) throw new Error(res.msg || 'Error al guardar');
+
+      urlDescarga = res.url;
+      document.getElementById('modal-msg').textContent =
+        `${res.total} registro(s) guardados en "${res.nombreArchivo}". ` +
+        `¿Deseas descargar el archivo .xlsx?`;
+      document.getElementById('modal').classList.add('show');
+
+      try {
         const r = await apiGet({ action: 'proximoCorrelativo' });
         correlativoBase = (r.data && r.data.proximo) || correlativoBase;
         actualizarPill();
-      } else {
-        showToast(res.msg || 'Error al guardar', 'error');
-      }
+      } catch (e) {}
+
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
@@ -609,7 +632,6 @@
     }
   }
 
-  /* ---------- Limpiar ---------- */
   async function limpiarTodo() {
     if (!confirm('¿Eliminar todos los registros?')) return;
     document.getElementById('frames-container').innerHTML = '';
