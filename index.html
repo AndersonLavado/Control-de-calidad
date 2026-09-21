@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base target="_top">
   <title>CELSA - Registro de Scrap</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -26,11 +27,22 @@
       background: #FFF; border-bottom: 1px solid var(--celsa-border);
       border-top-left-radius: 8px; border-top-right-radius: 8px;
       position: sticky; top: 0; z-index: 100; }
-    .logo-box { background: var(--celsa-red); color: #FFF; font-weight: 900;
-      font-size: 20px; letter-spacing: 1px; padding: 4px 12px;
-      border-radius: 3px; display: inline-block; }
-    .logo-sub { font-size: 8px; font-weight: bold; color: #000;
-      text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+        .logo-block { display: inline-block; }
+
+    .logo-box {
+      background: var(--celsa-red); color: #FFF;
+      font-weight: 900; font-size: 20px; letter-spacing: 2px;
+      padding: 4px 8px; border-radius: 3px;
+      display: block; text-align: center;
+      width: 100%; box-sizing: border-box;
+    }
+
+    .logo-sub {
+      font-size: 8px; font-weight: bold; color: #000;
+      text-transform: uppercase; margin-top: 3px;
+      letter-spacing: 0.5px; text-align: center;
+      display: block; white-space: nowrap;
+    }
     .app-title { font-size: 13px; color: #666; font-weight: 600;
       max-width: 200px; text-align: right; }
     main { padding: 20px; flex: 1 0 auto; }
@@ -169,10 +181,10 @@
 </head>
 <body>
 <div class="mobile-container">
-  <header>
-    <div>
+    <header>
+    <div class="logo-block">
       <div class="logo-box">CELSA</div>
-      <div class="logo-sub">Control de Scrap</div>
+      <div class="logo-sub">CONDUCTORES ELECTRICOS</div>
     </div>
     <div class="app-title">Registro Diario<br>Control de Calidad</div>
   </header>
@@ -229,7 +241,7 @@
   <p id="loading-text">Procesando...</p>
 </div>
 
-<!-- Modal de confirmación de descarga -->
+<!-- Modal confirmación descarga -->
 <div class="modal-overlay" id="modal">
   <div class="modal-box">
     <div class="icon-ok"><i class="fas fa-check"></i></div>
@@ -246,9 +258,9 @@
 
 <script>
   /* =========================================================
-     ⚙️ CONFIGURACIÓN: URL del backend Apps Script (.exec)
+     ⚙️ URL del backend Apps Script (.exec)
      ========================================================= */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwySx-q5QlrloTXeL1CLhw4pdO986MV7HMiOMPr3k37mtrLbDf3nhjrrKRYCd9kndO_/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwQZR_KnheC1VGLpSoAlGs_rp5CzDHyjQSP_iqXPFj5omnOmcQA_sJK5GT-K9nltxca/exec';
 
   let contadorFrames = 0;
   let correlativoBase = 1;
@@ -276,6 +288,7 @@
     if (urlDescarga) window.open(urlDescarga, '_blank');
     cerrarModal();
   }
+
   function generarCodigo(numero) {
     const hoy = new Date();
     const dia = String(hoy.getDate()).padStart(2, '0');
@@ -285,41 +298,25 @@
     return `${dia}-${mes}-${numero}`;
   }
 
-  /* =========================================================
-     LLAMADAS AL BACKEND — fetch con text/plain
-     ========================================================= */
-
+  /* ---------- API helpers ---------- */
   async function apiGet(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
-    const resp = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      cache: 'no-store'
-    });
+    const resp = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const text = await resp.text();
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      throw new Error('Respuesta no JSON: ' + text.substring(0, 200));
-    }
+    try { return JSON.parse(text); }
+    catch (e) { throw new Error('Respuesta no JSON: ' + text.substring(0, 200)); }
   }
 
   async function apiPost(body) {
     const token = body.token;
-
-    // POST con text/plain → simple request, sin preflight
     await fetch(API_URL, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body)
     });
-
-    // Esperar a que el backend procese
     await new Promise(r => setTimeout(r, 1500));
-
-    // Consultar el resultado vía GET (que sí podemos leer)
     for (let i = 0; i < 20; i++) {
       try {
         const r = await apiGet({ action: 'ultimoGuardado', token: token });
@@ -331,7 +328,7 @@
     throw new Error('Sin respuesta del backend.');
   }
 
-  /* ---------- Inicializa ---------- */
+  /* ---------- Inicializar ---------- */
   async function inicializar() {
     showLoading('Consultando correlativo...');
     try {
@@ -372,6 +369,7 @@
         </div>
         <div class="frame-content">
           <div class="form-grid">
+
             <div class="form-group">
               <label>Código</label>
               <input type="text" class="inp-codigo" value="${codigo}" readonly>
@@ -399,27 +397,40 @@
                      placeholder="Ej: 4410" oninput="onArticulo(this)">
               <div class="status-msg"></div>
             </div>
+
             <div class="form-group">
               <label>Producto</label>
               <input type="text" class="inp-producto" readonly>
             </div>
+
             <div class="form-group">
               <label>Color</label>
               <input type="text" class="inp-color" readonly>
             </div>
+
             <div class="form-group">
               <label>Longitud (m)</label>
-              <input type="number" class="inp-longitud" min="0" step="0.01"
-                     placeholder="Ej: 3.5" oninput="onLongitud(this)">
+              <input type="number" class="inp-longitud" min="0" step="1"
+                     placeholder="Ej: 100" oninput="onLongitud(this)">
             </div>
+
             <div class="form-group">
               <label>Peso Cu (kg)</label>
               <input type="text" class="inp-pesocu" readonly>
             </div>
+
             <div class="form-group">
               <label>Peso Al (kg)</label>
               <input type="text" class="inp-pesoal" readonly>
             </div>
+
+            <!-- ✅ Observación dentro del grid, ocupando todo el ancho -->
+            <div class="form-group full">
+              <label>Observación</label>
+              <input type="text" class="inp-observacion"
+                     placeholder="Opcional: detalle del producto / incidencia">
+            </div>
+
           </div>
         </div>
       </div>`;
@@ -549,6 +560,7 @@
     document.getElementById('stat-hojas').textContent    = recorridos;
   }
 
+  /* ---------- Recolectar y validar ---------- */
   function recolectarDatos() {
     const frames = document.querySelectorAll('.frame-container');
     const registros = [];
@@ -564,6 +576,10 @@
       const longitud = f.querySelector('.inp-longitud').value.trim();
       const pesoCu   = f.querySelector('.inp-pesocu').value;
       const pesoAl   = f.querySelector('.inp-pesoal').value;
+
+      // ✅ Selector CORREGIDO (minúscula)
+      const obsInput    = f.querySelector('.inp-observacion');
+      const observacion = obsInput ? obsInput.value.trim() : '';
 
       if (!of_)                       error = `Producto #${i+1}: falta OF.`;
       if (!anio || !/^\d{2}$/.test(anio))
@@ -582,7 +598,8 @@
         producto,
         color,
         pesoCu: parseFloat(pesoCu) || '',
-        pesoAl: parseFloat(pesoAl) || ''
+        pesoAl: parseFloat(pesoAl) || '',
+        observacion: observacion   // ✅ clave consistente
       });
     });
 
