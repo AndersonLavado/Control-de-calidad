@@ -27,8 +27,7 @@
       background: #FFF; border-bottom: 1px solid var(--celsa-border);
       border-top-left-radius: 8px; border-top-right-radius: 8px;
       position: sticky; top: 0; z-index: 100; }
-        .logo-block { display: inline-block; }
-
+    .logo-block { display: inline-block; }
     .logo-box {
       background: var(--celsa-red); color: #FFF;
       font-weight: 900; font-size: 20px; letter-spacing: 2px;
@@ -36,7 +35,6 @@
       display: block; text-align: center;
       width: 100%; box-sizing: border-box;
     }
-
     .logo-sub {
       font-size: 8px; font-weight: bold; color: #000;
       text-transform: uppercase; margin-top: 3px;
@@ -111,9 +109,6 @@
       box-shadow: 0 4px 10px rgba(227,6,19,0.25); }
     .btn-primary:hover { background: #b8000f; }
     .btn-primary:disabled { background: #999; box-shadow: none; cursor: not-allowed; }
-    .btn-secondary { background: #FFF; color: var(--celsa-dark);
-      border: 2px solid var(--celsa-border); }
-    .btn-secondary:hover { border-color: var(--celsa-dark); }
     .summary-card { background: #FFF; border: 2px solid var(--celsa-border);
       border-radius: 12px; padding: 16px; margin-top: 20px; }
     .summary-card h3 { font-size: 13px; color: #666;
@@ -171,6 +166,7 @@
       cursor: pointer; border: none; font-family: inherit; }
     .modal-box .btn-dl { background: var(--celsa-red); color: #FFF; }
     .modal-box .btn-dl:hover { background: #b8000f; }
+    .modal-box .btn-dl:disabled { background: #999; cursor: not-allowed; }
     .modal-box .btn-no { background: #F0F0F2; color: var(--celsa-dark); }
     @media (max-width: 520px) {
       .form-grid { grid-template-columns: 1fr; }
@@ -181,7 +177,7 @@
 </head>
 <body>
 <div class="mobile-container">
-    <header>
+  <header>
     <div class="logo-block">
       <div class="logo-box">CELSA</div>
       <div class="logo-sub">CONDUCTORES ELECTRICOS</div>
@@ -225,9 +221,6 @@
     </div>
 
     <div class="actions-bar">
-      <button class="btn btn-secondary" onclick="limpiarTodo()">
-        <i class="fas fa-eraser"></i> Limpiar
-      </button>
       <button class="btn btn-primary" id="btn-guardar" onclick="guardarTodo()">
         <i class="fas fa-file-excel"></i> Generar .XLSX
       </button>
@@ -241,32 +234,60 @@
   <p id="loading-text">Procesando...</p>
 </div>
 
-<!-- Modal confirmación descarga -->
 <div class="modal-overlay" id="modal">
   <div class="modal-box">
     <div class="icon-ok"><i class="fas fa-check"></i></div>
     <h3>¡Registro guardado!</h3>
     <p id="modal-msg">Se guardó correctamente en la carpeta destino.</p>
     <div class="btns">
-      <button class="btn-no" onclick="cerrarModal()">No, cerrar</button>
-      <button class="btn-dl" onclick="descargarArchivo()">
-        <i class="fas fa-download"></i> Sí, descargar
-      </button>
+      <button class="btn-dl" onclick="cerrarModal()" style="flex:1;">Cerrar</button>
     </div>
   </div>
 </div>
 
 <script>
-  /* =========================================================
-     ⚙️ URL del backend Apps Script (.exec)
-     ========================================================= */
-  const API_URL = 'https://script.google.com/macros/s/AKfycbw90w2RJuVu-S4u5-pTlvyGP_wS8Syjt3-oEo369Ok2fdBHSurmJL89YSJCXcsTP8tH/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbz4vBuY2pEzK7xjh171fsqLNFabwAVSGLGixbytEfw17RKblFXHmbYcNDFTnb8qothm/exec';
 
   let contadorFrames = 0;
   let correlativoBase = 1;
   let urlDescarga = '';
+  let idArchivoActual = '';
 
-  /* ---------- Utilidades UI ---------- */
+  const RECORRIDOS_KEY = 'celsa_recorridos';
+
+  function _hoyStr() {
+    const h = new Date();
+    return h.getFullYear() + '-' +
+           String(h.getMonth() + 1).padStart(2, '0') + '-' +
+           String(h.getDate()).padStart(2, '0');
+  }
+
+  function obtenerRecorridosHoy() {
+    try {
+      const raw = localStorage.getItem(RECORRIDOS_KEY);
+      if (!raw) return 0;
+      const obj = JSON.parse(raw);
+      if (obj && obj.fecha === _hoyStr()) {
+        return parseInt(obj.count, 10) || 0;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function incrementarRecorridosHoy() {
+    const actual = obtenerRecorridosHoy();
+    const nuevo = actual + 1;
+    try {
+      localStorage.setItem(RECORRIDOS_KEY, JSON.stringify({
+        fecha: _hoyStr(),
+        count: nuevo
+      }));
+    } catch (e) {}
+    return nuevo;
+  }
+
   function showToast(msg, tipo = 'success') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -284,10 +305,6 @@
   function cerrarModal() {
     document.getElementById('modal').classList.remove('show');
   }
-  function descargarArchivo() {
-    if (urlDescarga) window.open(urlDescarga, '_blank');
-    cerrarModal();
-  }
 
   function generarCodigo(numero) {
     const hoy = new Date();
@@ -298,7 +315,6 @@
     return `${dia}-${mes}-${numero}`;
   }
 
-  /* ---------- API helpers ---------- */
   async function apiGet(params) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
     const resp = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
@@ -309,26 +325,25 @@
   }
 
   async function apiPost(body) {
-    const token = body.token;
-    await fetch(API_URL, {
+    const resp = await fetch(API_URL, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body)
     });
-    await new Promise(r => setTimeout(r, 1500));
-    for (let i = 0; i < 20; i++) {
-      try {
-        const r = await apiGet({ action: 'ultimoGuardado', token: token });
-        if (r && r.ok) return r;
-        if (r && r.ok === false && r.msg && r.msg !== 'Sin resultado aún.') return r;
-      } catch (e) { /* reintentar */ }
-      await new Promise(r2 => setTimeout(r2, 2000));
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' al guardar');
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Respuesta no JSON: ' + text.substring(0, 200));
     }
-    throw new Error('Sin respuesta del backend.');
+    return data;
   }
 
-  /* ---------- Inicializar ---------- */
   async function inicializar() {
     showLoading('Consultando correlativo...');
     try {
@@ -341,6 +356,7 @@
       hideLoading();
       actualizarPill();
       agregarFrame();
+      actualizarContadorRecorridos();
     }
   }
 
@@ -349,7 +365,12 @@
     if (el) el.textContent = generarCodigo(correlativoBase);
   }
 
-  /* ---------- Crear frame ---------- */
+  function actualizarContadorRecorridos() {
+    const n = obtenerRecorridosHoy();
+    const el = document.getElementById('stat-hojas');
+    if (el) el.textContent = n;
+  }
+
   function agregarFrame() {
     contadorFrames++;
     const id = 'frame-' + contadorFrames;
@@ -385,9 +406,11 @@
                        placeholder="26"
                        title="Año (2 dígitos)">
                 <span style="font-weight:700; font-size:13px;">/</span>
-                <input type="text" class="inp-of" maxlength="4"
-                       placeholder="2070"
-                       style="flex:1; min-width:80px;">
+                <input type="text" class="inp-of" maxlength="9"
+                       placeholder="2070 o 2070-1544"
+                       title="4 dígitos, o 4-4 con guion para doble OF"
+                       oninput="onOF(this)"
+                       style="flex:1; min-width:120px;">
               </div>
             </div>
 
@@ -410,8 +433,11 @@
 
             <div class="form-group">
               <label>Longitud (m)</label>
-              <input type="number" class="inp-longitud" min="0" step="1"
-                     placeholder="Ej: 100" oninput="onLongitud(this)">
+              <input type="text" class="inp-longitud"
+                     inputmode="numeric" pattern="[0-9]*"
+                     maxlength="6"
+                     placeholder="Ej: 100"
+                     oninput="onLongitud(this)">
             </div>
 
             <div class="form-group">
@@ -424,7 +450,6 @@
               <input type="text" class="inp-pesoal" readonly>
             </div>
 
-            <!-- ✅ Observación dentro del grid, ocupando todo el ancho -->
             <div class="form-group full">
               <label>Observación</label>
               <input type="text" class="inp-observacion"
@@ -459,7 +484,6 @@
     });
   }
 
-  /* ---------- Buscar artículo ---------- */
   async function onArticulo(input) {
     const frame = input.closest('.frame-container');
     const status = frame.querySelector('.status-msg');
@@ -536,9 +560,33 @@
   }
 
   function onLongitud(input) {
+    let v = String(input.value || '').replace(/[^\d]/g, '');
+    if (v.length > 1) v = v.replace(/^0+/, '');
+    if (v.length > 6) v = v.substring(0, 6);
+    if (input.value !== v) input.value = v;
+
     const frame = input.closest('.frame-container');
     recalcularPesos(frame);
     actualizarResumen();
+  }
+
+  function onOF(input) {
+    let v = String(input.value || '').replace(/[^\d-]/g, '');
+
+    const partes = v.split('-');
+    if (partes.length > 2) {
+      v = partes[0] + '-' + partes[1];
+    }
+
+    const p = v.split('-');
+    if (p[0] && p[0].length > 4) p[0] = p[0].substring(0, 4);
+    if (p[1] && p[1].length > 4) p[1] = p[1].substring(0, 4);
+
+    v = (p.length === 2)
+        ? (p[0] + (v.indexOf('-') !== -1 ? '-' + p[1] : ''))
+        : p[0];
+
+    if (input.value !== v) input.value = v;
   }
 
   function actualizarResumen() {
@@ -553,14 +601,12 @@
       pesoAlTotal += al;
     });
 
-    const recorridos = Math.ceil(frames.length / 12) || 0;
     document.getElementById('stat-total').textContent    = frames.length;
     document.getElementById('stat-peso-cu').textContent  = pesoCuTotal.toFixed(2);
     document.getElementById('stat-peso-al').textContent  = pesoAlTotal.toFixed(2);
-    document.getElementById('stat-hojas').textContent    = recorridos;
+    actualizarContadorRecorridos();
   }
 
-  /* ---------- Recolectar y validar ---------- */
   function recolectarDatos() {
     const frames = document.querySelectorAll('.frame-container');
     const registros = [];
@@ -568,46 +614,74 @@
 
     frames.forEach((f, i) => {
       const codigo   = f.querySelector('.inp-codigo').value;
-      const of_      = f.querySelector('.inp-of').value.trim();
+      const ofRaw    = f.querySelector('.inp-of').value.trim();
       const anio     = f.querySelector('.inp-anio').value.trim();
       const articulo = f.querySelector('.inp-articulo').value.trim();
       const producto = f.querySelector('.inp-producto').value.trim();
       const color    = f.querySelector('.inp-color').value.trim();
-      const longitud = f.querySelector('.inp-longitud').value.trim();
+      const longitudRaw = f.querySelector('.inp-longitud').value.trim();
       const pesoCu   = f.querySelector('.inp-pesocu').value;
       const pesoAl   = f.querySelector('.inp-pesoal').value;
 
-      // ✅ Selector CORREGIDO (minúscula)
       const obsInput    = f.querySelector('.inp-observacion');
       const observacion = obsInput ? obsInput.value.trim() : '';
 
-      if (!of_)                       error = `Producto #${i+1}: falta OF.`;
+      const partesOF = ofRaw.split('-').map(s => s.trim()).filter(Boolean);
+      const of1 = partesOF[0] || '';
+      const of2 = partesOF[1] || '';
+
+      if (longitudRaw && !/^\d+$/.test(longitudRaw))
+        error = `Producto #${i+1}: la longitud debe ser un número entero.`;
+
+      const longitudInt = parseInt(longitudRaw, 10);
+
+      if (!of1 || !/^\d{4}$/.test(of1))
+        error = `Producto #${i+1}: la OF principal debe tener 4 dígitos.`;
+      if (of2 && !/^\d{4}$/.test(of2))
+        error = `Producto #${i+1}: la segunda OF debe tener 4 dígitos.`;
+
       if (!anio || !/^\d{2}$/.test(anio))
                                       error = `Producto #${i+1}: año de OF inválido (2 dígitos).`;
       if (!articulo)                  error = `Producto #${i+1}: falta código de artículo.`;
       if (!/^\d{4}$/.test(articulo))  error = `Producto #${i+1}: artículo debe ser 4 dígitos.`;
       if (!producto)                  error = `Producto #${i+1}: artículo no encontrado en lista.`;
-      if (!longitud || parseFloat(longitud) <= 0)
+      if (isNaN(longitudInt) || longitudInt <= 0)
                                       error = `Producto #${i+1}: falta longitud válida (> 0).`;
 
       registros.push({
         codigo,
-        of: of_,
+        of: of1,
+        of2: of2,
         anio: anio,
         articulo,
         producto,
         color,
-        longitud: parseFloat(longitud) || '',
+        longitud: isNaN(longitudInt) ? '' : longitudInt,
         pesoCu: parseFloat(pesoCu) || '',
         pesoAl: parseFloat(pesoAl) || '',
-        observacion: observacion 
+        observacion: observacion
       });
     });
 
     return { registros, error };
   }
 
-  /* ---------- Guardar ---------- */
+  function limpiarFormularioInterno() {
+    document.getElementById('frames-container').innerHTML = '';
+    contadorFrames = 0;
+    actualizarResumen();
+
+    apiGet({ action: 'proximoCorrelativo' })
+      .then(r => {
+        correlativoBase = (r.data && r.data.proximo) || correlativoBase;
+        actualizarPill();
+        reindexar();
+      })
+      .catch(() => {});
+
+    agregarFrame();
+  }
+
   async function guardarTodo() {
     const frames = document.querySelectorAll('.frame-container');
     if (frames.length === 0) { showToast('Agrega al menos un producto.', 'error'); return; }
@@ -615,32 +689,27 @@
     const { registros, error } = recolectarDatos();
     if (error) { showToast(error, 'error'); return; }
 
-    showLoading('Guardando y generando .xlsx...');
+    showLoading('Guardando en Google Sheets...');
     document.getElementById('btn-guardar').disabled = true;
-
-    const token = 'tk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 
     try {
       const res = await apiPost({
         action: 'guardarRegistros',
-        token: token,
         registros: registros
       });
 
       if (!res) throw new Error('Sin respuesta del backend.');
       if (!res.ok) throw new Error(res.msg || 'Error al guardar');
 
-      urlDescarga = res.url;
+      const nuevoTotal = incrementarRecorridosHoy();
+      actualizarContadorRecorridos();
+
       document.getElementById('modal-msg').textContent =
         `${res.total} registro(s) guardados en "${res.nombreArchivo}". ` +
-        `¿Deseas descargar el archivo .xlsx?`;
+        `Recorrido #${nuevoTotal} del día.`;
       document.getElementById('modal').classList.add('show');
 
-      try {
-        const r = await apiGet({ action: 'proximoCorrelativo' });
-        correlativoBase = (r.data && r.data.proximo) || correlativoBase;
-        actualizarPill();
-      } catch (e) {}
+      limpiarFormularioInterno();
 
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
@@ -648,21 +717,6 @@
       hideLoading();
       document.getElementById('btn-guardar').disabled = false;
     }
-  }
-
-  async function limpiarTodo() {
-    if (!confirm('¿Eliminar todos los registros?')) return;
-    document.getElementById('frames-container').innerHTML = '';
-    contadorFrames = 0;
-    actualizarResumen();
-    try {
-      const res = await apiGet({ action: 'proximoCorrelativo' });
-      correlativoBase = (res.data && res.data.proximo) || 1;
-    } catch (e) {
-      correlativoBase = 1;
-    }
-    actualizarPill();
-    agregarFrame();
   }
 
   window.addEventListener('DOMContentLoaded', inicializar);
