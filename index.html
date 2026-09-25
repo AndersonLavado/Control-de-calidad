@@ -246,12 +246,13 @@
 </div>
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyMCL4Y3GnTZyx_CAdxkL1c9qnvzrb3O2KDBDGOvO9QkDWht8EYdEKu0SNk3hET2tsk/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwW5srkdne652Ok0Sawrqc_0ORF7QCQPNOimLgsuyqWnfzMj7hMizv2Thv-bfDeTWEs/exec';
 
   let contadorFrames = 0;
   let correlativoBase = 1;
   let urlDescarga = '';
   let idArchivoActual = '';
+  let guardando = false;
 
   const RECORRIDOS_KEY = 'celsa_recorridos';
   const TOKEN_KEY = 'celsa_token_pendiente';
@@ -718,6 +719,8 @@
   }
 
   async function guardarTodo() {
+    if (guardando) return;
+
     const frames = document.querySelectorAll('.frame-container');
     if (frames.length === 0) { showToast('Agrega al menos un producto.', 'error'); return; }
 
@@ -730,6 +733,7 @@
       localStorage.setItem(TOKEN_KEY, token);
     }
 
+    guardando = true;
     showLoading('Guardando en Google Sheets...');
     document.getElementById('btn-guardar').disabled = true;
 
@@ -758,6 +762,7 @@
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     } finally {
+      guardando = false;
       hideLoading();
       document.getElementById('btn-guardar').disabled = false;
     }
