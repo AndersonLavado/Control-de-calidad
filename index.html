@@ -254,6 +254,7 @@
   let idArchivoActual = '';
 
   const RECORRIDOS_KEY = 'celsa_recorridos';
+  const TOKEN_KEY = 'celsa_token_pendiente';
 
   function _hoyStr() {
     const h = new Date();
@@ -315,33 +316,63 @@
     return `${dia}-${mes}-${numero}`;
   }
 
-  async function apiGet(params) {
+  async function apiGet(params, intentos = 3) {
     const url = API_URL + '?' + new URLSearchParams(params).toString();
-    const resp = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    try { return JSON.parse(text); }
-    catch (e) { throw new Error('Respuesta no JSON: ' + text.substring(0, 200)); }
+
+    for (let i = 1; i <= intentos; i++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        const resp = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const text = await resp.text();
+        try { return JSON.parse(text); }
+        catch (e) { throw new Error('Respuesta no JSON: ' + text.substring(0, 200)); }
+      } catch (err) {
+        console.warn('GET intento ' + i + ' fallido:', err.message);
+        if (i === intentos) throw err;
+        await new Promise(r => setTimeout(r, 1500 * i));
+      }
+    }
   }
 
-  async function apiPost(body) {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body)
-    });
+  async function apiPost(body, intentos = 3) {
+    for (let i = 1; i <= intentos; i++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45000);
+        const resp = await fetch(API_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
 
-    if (!resp.ok) throw new Error('HTTP ' + resp.status + ' al guardar');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' al guardar');
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error('Respuesta no JSON: ' + text.substring(0, 200));
+        const text = await resp.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Respuesta no JSON: ' + text.substring(0, 200));
+        }
+        return data;
+      } catch (err) {
+        console.warn('POST intento ' + i + ' fallido:', err.message);
+        if (i === intentos) throw err;
+        await new Promise(r => setTimeout(r, 3000 * i));
+      }
     }
-    return data;
   }
 
   async function inicializar() {
@@ -682,6 +713,10 @@
     agregarFrame();
   }
 
+  function generarToken() {
+    return 'tk_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
   async function guardarTodo() {
     const frames = document.querySelectorAll('.frame-container');
     if (frames.length === 0) { showToast('Agrega al menos un producto.', 'error'); return; }
@@ -689,17 +724,26 @@
     const { registros, error } = recolectarDatos();
     if (error) { showToast(error, 'error'); return; }
 
+    let token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      token = generarToken();
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+
     showLoading('Guardando en Google Sheets...');
     document.getElementById('btn-guardar').disabled = true;
 
     try {
       const res = await apiPost({
         action: 'guardarRegistros',
+        token: token,
         registros: registros
       });
 
       if (!res) throw new Error('Sin respuesta del backend.');
       if (!res.ok) throw new Error(res.msg || 'Error al guardar');
+
+      localStorage.removeItem(TOKEN_KEY);
 
       const nuevoTotal = incrementarRecorridosHoy();
       actualizarContadorRecorridos();
