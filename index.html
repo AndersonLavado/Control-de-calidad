@@ -246,16 +246,13 @@
 </div>
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwW5srkdne652Ok0Sawrqc_0ORF7QCQPNOimLgsuyqWnfzMj7hMizv2Thv-bfDeTWEs/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycby4W1Qfegf3Mng5UuFaMU9T3tVr9VcyaXCrcW4mjZFfTrWklH5OSsFKvXbiPJ2gryGj/exec';
 
   let contadorFrames = 0;
   let correlativoBase = 1;
-  let urlDescarga = '';
-  let idArchivoActual = '';
   let guardando = false;
 
   const RECORRIDOS_KEY = 'celsa_recorridos';
-  const TOKEN_KEY = 'celsa_token_pendiente';
 
   function _hoyStr() {
     const h = new Date();
@@ -438,9 +435,9 @@
                        placeholder="26"
                        title="Año (2 dígitos)">
                 <span style="font-weight:700; font-size:13px;">/</span>
-                <input type="text" class="inp-of" maxlength="9"
-                       placeholder="2070 o 2070-1544"
-                       title="4 dígitos, o 4-4 con guion para doble OF"
+                <input type="text" class="inp-of" maxlength="21"
+                       placeholder="2070 o 2070-1544-..."
+                       title="Hasta 4 OFs de 4 dígitos separadas por guion"
                        oninput="onOF(this)"
                        style="flex:1; min-width:120px;">
               </div>
@@ -605,18 +602,14 @@
   function onOF(input) {
     let v = String(input.value || '').replace(/[^\d-]/g, '');
 
-    const partes = v.split('-');
-    if (partes.length > 2) {
-      v = partes[0] + '-' + partes[1];
+    let partes = v.split('-');
+    if (partes.length > 4) {
+      partes = partes.slice(0, 4);
     }
 
-    const p = v.split('-');
-    if (p[0] && p[0].length > 4) p[0] = p[0].substring(0, 4);
-    if (p[1] && p[1].length > 4) p[1] = p[1].substring(0, 4);
+    partes = partes.map(p => p.substring(0, 4));
 
-    v = (p.length === 2)
-        ? (p[0] + (v.indexOf('-') !== -1 ? '-' + p[1] : ''))
-        : p[0];
+    v = partes.join('-');
 
     if (input.value !== v) input.value = v;
   }
@@ -659,18 +652,26 @@
       const observacion = obsInput ? obsInput.value.trim() : '';
 
       const partesOF = ofRaw.split('-').map(s => s.trim()).filter(Boolean);
-      const of1 = partesOF[0] || '';
-      const of2 = partesOF[1] || '';
+
+      let ofError = null;
+      for (let j = 0; j < partesOF.length; j++) {
+        if (!/^\d{4}$/.test(partesOF[j])) {
+          ofError = `Producto #${i+1}: la OF #${j+1} debe tener 4 dígitos.`;
+          break;
+        }
+      }
+      if (partesOF.length === 0) {
+        ofError = `Producto #${i+1}: falta al menos una OF.`;
+      }
+      if (partesOF.length > 4) {
+        ofError = `Producto #${i+1}: máximo 4 OFs.`;
+      }
+      if (ofError) error = ofError;
 
       if (longitudRaw && !/^\d+$/.test(longitudRaw))
         error = `Producto #${i+1}: la longitud debe ser un número entero.`;
 
       const longitudInt = parseInt(longitudRaw, 10);
-
-      if (!of1 || !/^\d{4}$/.test(of1))
-        error = `Producto #${i+1}: la OF principal debe tener 4 dígitos.`;
-      if (of2 && !/^\d{4}$/.test(of2))
-        error = `Producto #${i+1}: la segunda OF debe tener 4 dígitos.`;
 
       if (!anio || !/^\d{2}$/.test(anio))
                                       error = `Producto #${i+1}: año de OF inválido (2 dígitos).`;
@@ -682,8 +683,7 @@
 
       registros.push({
         codigo,
-        of: of1,
-        of2: of2,
+        ofs: partesOF,
         anio: anio,
         articulo,
         producto,
@@ -727,11 +727,7 @@
     const { registros, error } = recolectarDatos();
     if (error) { showToast(error, 'error'); return; }
 
-    let token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      token = generarToken();
-      localStorage.setItem(TOKEN_KEY, token);
-    }
+    const token = generarToken();
 
     guardando = true;
     showLoading('Guardando en Google Sheets...');
@@ -746,8 +742,6 @@
 
       if (!res) throw new Error('Sin respuesta del backend.');
       if (!res.ok) throw new Error(res.msg || 'Error al guardar');
-
-      localStorage.removeItem(TOKEN_KEY);
 
       const nuevoTotal = incrementarRecorridosHoy();
       actualizarContadorRecorridos();
